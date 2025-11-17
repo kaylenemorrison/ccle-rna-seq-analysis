@@ -12,6 +12,9 @@ format:
         \usepackage{fvextra}
         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r}
@@ -64,40 +67,27 @@ print(17668 - 16196) ## 1472 genes removed when removing extremely lowly express
 
 ```{r}
 head(ccle_meta_subset)
-```
-
-```{r}
 counts(dds)[1:10,1:10]
-```
-
-```{r}
 assay(vsd)[1:10,1:10]
 ```
 
 # Principal Component Analysis
-
-```{r}
- plotPCA(vsd, intgroup = "Pathology", ntop = 500) ## no obvious clustering by pathology
-```
-
-```{r}
-plotPCA(vsd, intgroup = "Gender", ntop = 500) ## no obvious clustering by gender
-```
-
 ```{r}
 unique(ccle_meta_subset$tcga_code) ## only one tcga code so can't test clustering that way
 ```
 
 ```{r}
+plotPCA(vsd, intgroup = "Pathology", ntop = 500) ## no obvious clustering by pathology
+plotPCA(vsd, intgroup = "Gender", ntop = 500) ## no obvious clustering by gender
 plotPCA(vsd, intgroup = c("Gender", "Pathology"), ntop = 500) ## no obvious clustering by both pathology and gender
 ```
 
 ```{r}
-variances <- rowVars(assay(vsd))
-top_var_genes <- order(variances, decreasing = TRUE)[1:500]
-high_var_mat <- assay(vsd)[top_var_genes,]
-pca_res <- prcomp(t(high_var_mat), center = TRUE, scale = FALSE)
-explained_variance <- pca_res$sdev^2 / sum(pca_res$sdev^2) * 100
+variances <- rowVars(assay(vsd)) # calculate variance across samples of all genes
+top_var_genes <- order(variances, decreasing = TRUE)[1:500] # extract the indices of the top 500 variable genes in descending order
+high_var_mat <- assay(vsd)[top_var_genes,] # subset the gene counts with the top 500 variable genes
+pca_res <- prcomp(t(high_var_mat), center = TRUE, scale = FALSE) # do PCA
+explained_variance <- pca_res$sdev^2 / sum(pca_res$sdev^2) * 100 # create a vector with the % of variance explained by each PC
 ```
 
 PC3 and PC4 do not show as obvious clustering/grouping as PC1 and PC2
@@ -111,7 +101,11 @@ df_pca_3_4 |> ggplot() + aes(x = PC3, y = PC4, color = Gender) +
        y = paste0("PC4: ", round(explained_variance[4], 1), "% variance"))
 ```
 
-The below elbow plot displays the principal components based on the percentage of the total variance each one captures. Principle Component 1 and Principle Component 2 capture the largest portion of variance in the data by far, so examining the other PCs would only be marginally beneficial.
+The below elbow plot displays the principal components based on the
+percentage of the total variance each one captures. Principle Component
+1 and Principle Component 2 capture the largest portion of variance in
+the data by far, so examining the other PCs would only be marginally
+beneficial.
 
 ```{r}
 df_variance <- data.frame(PC = seq_len(25), Variance = explained_variance[1:25])
@@ -189,9 +183,21 @@ df_facet_longer_PC1 |>
 
 The top 6 genes with the highest loadings/contributions in PC1:
 
-LYZ – Lysozyme, an antimicrobial enzyme often expressed in monocytes, macrophages, and some epithelial cells. AGR2 – Anterior Gradient 2, associated with mucus production and epithelial differentiation, often upregulated in gastrointestinal tissues and some cancers. LGALS4 – Galectin-4, involved in cell adhesion and signaling, typically expressed in intestinal epithelial cells. TSPAN8 – Tetraspanin 8, plays a role in cell migration, metastasis, and epithelial biology. GPX2 – Glutathione Peroxidase 2, an antioxidant enzyme mainly found in the gastrointestinal tract. VIL1 – Villin 1, an actin-binding protein highly expressed in intestinal epithelial cells and a classic enterocyte marker.
+LYZ – Lysozyme, an antimicrobial enzyme often expressed in monocytes,
+macrophages, and some epithelial cells. AGR2 – Anterior Gradient 2,
+associated with mucus production and epithelial differentiation, often
+upregulated in gastrointestinal tissues and some cancers. LGALS4 –
+Galectin-4, involved in cell adhesion and signaling, typically expressed
+in intestinal epithelial cells. TSPAN8 – Tetraspanin 8, plays a role in
+cell migration, metastasis, and epithelial biology. GPX2 – Glutathione
+Peroxidase 2, an antioxidant enzyme mainly found in the gastrointestinal
+tract. VIL1 – Villin 1, an actin-binding protein highly expressed in
+intestinal epithelial cells and a classic enterocyte marker.
 
-The genes LYZ, AGR2, LGALS4, TSPAN8, GPX2, and VIL1 encode proteins with diverse functions, most notably linked to the gastrointestinal tract epithelium and the development and prognosis of various epithelial cancers, particularly colorectal cancer (CRC).
+The genes LYZ, AGR2, LGALS4, TSPAN8, GPX2, and VIL1 encode proteins with
+diverse functions, most notably linked to the gastrointestinal tract
+epithelium and the development and prognosis of various epithelial
+cancers, particularly colorectal cancer (CRC).
 
 Analysis for highest load genes for PC2
 
@@ -255,9 +261,10 @@ df_facet_longer_PC2 |>
   )
 ```
 
-ALPP, TACSTD2, LAMC2, KLK6, MUC16, and LAMB3 encode various proteins, most of which are associated with cell adhesion, the extracellular matrix, and are frequently implicated in cancer development and metastasis.
-
-I hypothesize that the genes in the extreme ends of PC2 differ by how much the cancers they are associated with metastasize through cell detachment and migration.
+ALPP, TACSTD2, LAMC2, KLK6, MUC16, and LAMB3 encode various proteins,
+most of which are associated with cell adhesion, the extracellular
+matrix, and are frequently implicated in cancer development and
+metastasis.
 
 # Hierarchical Clustering
 
@@ -293,7 +300,9 @@ Heatmap(high_var_mat,
         column_split = clusters, ## split the heatmap by the calculated clusters
         top_annotation = column_annotation) 
 ```
-No clear evidence that there is a clustering that corresponds with the metadata. 
+
+No clear evidence that there is a clustering that corresponds with the
+metadata.
 
 ```{r}
 ## top 50 variable genes 
@@ -308,7 +317,7 @@ pca_res <- prcomp(t(high_var_mat), center = TRUE, scale = FALSE)
 explained_variance <- pca_res$sdev^2 / sum(pca_res$sdev^2) * 100 ## vector of length = # of PCs where each value is the standard deviation of that PC
 
 hc <- hclust(dist(t(high_var_mat)), method = "complete")
-clusters <- cutree(hc, k = 2) ## clusters is a vector of length = # of samples with each sample classified into the number of clusters
+clusters <- cutree(hc, k = 2) ## 2 clusters
 
 df_pca <- data.frame(PC1 = pca_res$x[, 1], PC2 = pca_res$x[, 2], Cluster = factor(clusters)) ## rows are samples
 
@@ -320,6 +329,7 @@ ggplot(df_pca, aes(x = PC1, y = PC2, color = Cluster)) +
   labs(x = paste0("PC1: ", round(explained_variance[1], 1), "% variance"), 
        y = paste0("PC2: ", round(explained_variance[2], 1), "% variance"))
 ```
+
 ```{r}
 # top 500 variable genes
 
@@ -334,7 +344,7 @@ pca_res <- prcomp(t(high_var_mat), center = TRUE, scale = FALSE)
 explained_variance <- pca_res$sdev^2 / sum(pca_res$sdev^2) * 100 
 
 hc <- hclust(dist(t(high_var_mat)), method = "complete")
-clusters <- cutree(hc, k = 3) 
+clusters <- cutree(hc, k = 3) ## 3 clusters
 
 df_pca <- data.frame(PC1 = pca_res$x[, 1], PC2 = pca_res$x[, 2], Cluster = factor(clusters)) ## rows are samples
 
@@ -346,8 +356,8 @@ ggplot(df_pca, aes(x = PC1, y = PC2, color = Cluster)) +
   labs(x = paste0("PC1: ", round(explained_variance[1], 1), "% variance"), 
        y = paste0("PC2: ", round(explained_variance[2], 1), "% variance"))
 ```
-PCA and hierachical clustering in agreement in terms of groupings. 
 
+PCA and hierachical clustering in agreement in terms of groupings.
 
 # Differential Expression Analysis
 
@@ -376,9 +386,11 @@ res <- results(dds) ## get the results of the differential expression analysis
 print(dim(res))
 print(head(res, 20))
 ```
+
 ```{r}
 summary(res)
 ```
+
 ```{r}
 res <- res %>%
   as.data.frame() %>%
@@ -394,13 +406,11 @@ res <- res %>%
 low_p <- res[res$padj < 0.001, ] ## extract only the genes with an adjusted p value of < 0.001
 ordered <- order(abs(low_p$log2FoldChange), decreasing = TRUE) # order genes by absolute value of log2 fold change
 res_reordered <- low_p[ordered, ]
-
-
 print(head(res_reordered, 30))
 ```
 
-Top 3 DEGs in cluster 2: LYZ, REG4, MUC17
-Top 3 DEGs in cluster 1: MAGEA10, NPFFR2, BASP1
+Top 3 DEGs in cluster 2: LYZ, REG4, MUC17 Top 3 DEGs in cluster 1:
+MAGEA10, NPFFR2, BASP1
 
 ```{r}
 
@@ -438,7 +448,11 @@ ggplot(PC1_PC2_top6_genes_longer, aes(x = PC1, y = PC2, color = Expression)) +
        color = "Expression (VST)") +
   facet_wrap(~ Gene)
 ```
-There is evidence of differential expression of these genes along the first principle component. As expected, 3 are highly expressed on the "right" side of the axis, and 3 are highly expressed on the "left" side of the axis, since I chose the top 3 DEGs in both clusters.
+
+There is evidence of differential expression of these genes along the
+first principle component. As expected, 3 are highly expressed on the
+"right" side of the axis, and 3 are highly expressed on the "left" side
+of the axis, since I chose the top 3 DEGs in both clusters.
 
 ```{r}
 
@@ -466,6 +480,7 @@ EnhancedVolcano(res_reordered,
   theme_classic() +
   theme(legend.position = "none")
 ```
+
 ```{r}
 print(top_ten_positive)
 print(top_ten_negative)
@@ -473,27 +488,20 @@ print(top_ten_negative)
 
 # Interpretation
 
-cluster 2 genes: more associated with epithelium than cluster 1 genes
-- Epithelial / mucosal lineage
-  MUC17, MUC5AC: mucins, goblet/secretory epithelial markers
-  CEACAM5: epithelial adhesion molecule
-  AGR3: secretory cell-associated
-  AQP5: water channel in mucosal secretory epithelia
-  SLC44A4: transporter enriched in intestinal epithelial cells
-- Goblet / secretory / absorptive intestinal epithelial markers
-  REG4: secretory epithelial lineage
-  LYZ: Paneth-like / innate defense
-  
-Cluster 1 genes: More heterogeneous, not strongly epithelial-specific
-  GHR: growth hormone receptor
-  ADAMTS12: extracellular-matrix remodeling enzyme
-  GPC6: glypican (cell signaling, mesenchyme-related)
-  EGFLAM: adhesion/extracellular matrix
-  KANK4: cytoskeletal regulation
-  BASP1: neuronal differentiation–related
-  NPFFR2: neuropeptide receptor
-  MAGEA4/10: cancer/testis antigen family
+cluster 2 genes: more associated with epithelium than cluster 1 genes -
+Epithelial / mucosal lineage MUC17, MUC5AC: mucins, goblet/secretory
+epithelial markers CEACAM5: epithelial adhesion molecule AGR3: secretory
+cell-associated AQP5: water channel in mucosal secretory epithelia
+SLC44A4: transporter enriched in intestinal epithelial cells - Goblet /
+secretory / absorptive intestinal epithelial markers REG4: secretory
+epithelial lineage LYZ: Paneth-like / innate defense
 
+Cluster 1 genes: More heterogeneous, not strongly epithelial-specific
+GHR: growth hormone receptor ADAMTS12: extracellular-matrix remodeling
+enzyme GPC6: glypican (cell signaling, mesenchyme-related) EGFLAM:
+adhesion/extracellular matrix KANK4: cytoskeletal regulation BASP1:
+neuronal differentiation–related NPFFR2: neuropeptide receptor
+MAGEA4/10: cancer/testis antigen family
 
 # sessionInfo()
 

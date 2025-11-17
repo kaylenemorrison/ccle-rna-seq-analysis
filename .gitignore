@@ -5,3 +5,12 @@
 
 # macOS system files
 .DS_Store
+
+#renv
+library/
+local/
+cellar/
+lock/
+python/
+sandbox/
+staging/
