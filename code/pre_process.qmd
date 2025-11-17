@@ -1,5 +1,141 @@
 ---
-title: "pre_process"
-format: html
+title: "RNA-Seq Data Preparation"
+author: "Kaylene Morrison"
+format:
+  html:
+    self-contained: true
 ---
 
+```{r}
+library(tidyr)
+library(dplyr)
+library(biomaRt)
+```
+
+### Read in the CCLE RNA-seq counts matrix
+
+```{r}
+ccle_counts <- read.csv("../data/raw/CCLE_RNAseq_genes_counts_20180929.gct.gz", header = TRUE, sep = "\t", skip = 2)
+ccle_counts <- ccle_counts[,-1] ## remove the first column with ensemble ID
+print(ccle_counts[1:10, 1:10])
+print(dim(ccle_counts))
+```
+
+-   56202 Rows, 1020 columns
+-   Rows = Genes
+-   Columns = Samples
+-   Description = names of genes
+
+```{r}
+print(sum(duplicated(colnames(ccle_counts))))
+print(sum(duplicated(ccle_counts$Description)))
+```
+
+-   0 duplicated columns
+-   1931 duplicated genes
+
+Combine Duplicated Rows:
+
+```{r}
+## extract the duplicated rows
+ccle_counts_dupes <- ccle_counts[ccle_counts$Description %in% ccle_counts$Description[duplicated(ccle_counts$Description)], ]
+
+## summing the counts of the duplicated genes by grouping by gene
+ccle_counts_dupes_summed <- ccle_counts_dupes %>% group_by(Description) %>% summarize(across(where(is.numeric), sum))
+
+## Remove the duplicated rows
+ccle_counts_no_duplicates <- ccle_counts[!duplicated(ccle_counts$Description) & !duplicated(ccle_counts$Description, fromLast = TRUE), ]
+
+## combining the summed duplicated rows with the non-duplicated rows
+ccle_counts <- bind_rows(ccle_counts_no_duplicates, ccle_counts_dupes_summed)
+print(ccle_counts[1:10, 1:10])
+print(dim(ccle_counts))
+```
+
+Remove the Description column and make the row names the gene names:
+
+```{r}
+rownames(ccle_counts) <- ccle_counts$Description
+ccle_counts$Description <- NULL
+print(ccle_counts[1:10, 1:10])
+```
+
+```{r}
+print(dim(ccle_counts))
+print(56202 - dim(ccle_counts)[1])
+## removed 1931 duplicated genes
+```
+
+Select protein coding genes:
+
+```{r}
+## connects to Ensembl database using useMart function 
+## requests human gene annotation dataset
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+## queries Ensemble and gets gene annotation
+## filters for biotype, and the type of biotype filtered for is protein_coding
+## returns a data frame with all human protein coding genes
+coding_genes_hgnc <- getBM(attributes = c('ensembl_gene_id', 'hgnc_symbol', 'gene_biotype'),
+                           filters = 'biotype',
+                           values = 'protein_coding',
+                           mart = ensembl)
+
+# Extract the "hgnc_symbol" column (which contains HGNC gene symbols) from the list of coding genes
+coding_gene_ids <- coding_genes_hgnc$hgnc_symbol
+
+## subsets ccle counts with genes that are human protein coding genes
+ccle_counts <- ccle_counts[rownames(ccle_counts) %in% coding_gene_ids, ]
+
+## ensures that ccle_counts is of type data.frame
+ccle_counts <- data.frame(ccle_counts)
+print(ccle_counts[1:10, 1:10])
+print(dim(ccle_counts))
+```
+
+-   roughly 40,000 non-protein-coding genes were removed
+
+### Read in the Metadata
+
+```{r}
+ccle_meta <- read.csv("../data/raw/Cell_lines_annotations_20181226.txt", header = TRUE, sep = "\t")
+ccle_meta[1:10,1:10]
+dim(ccle_meta)
+```
+
+-   1461 rows x 33 columns
+-   rows = a cell line from the CCLE
+-   columns = metadata and annotations from each cell line
+
+```{r}
+## keep informative/important columns
+ccle_meta <- ccle_meta[,c("CCLE_ID","depMapID","Name","Pathology","Site_Primary","Gender","tcga_code")]
+```
+
+```{r}
+ccle_meta$Site_Primary[is.na(ccle_meta$Site_Primary)] <- "missing_info"
+ccle_meta$Gender[is.na(ccle_meta$Gender) | ccle_meta$Gender == "" | ccle_meta$Gender == "null"] <- "missing_info"
+```
+
+### Align Metadata with Counts Matrix
+
+```{r}
+index_a <- colnames(ccle_counts) %in% ccle_meta$CCLE_ID
+ccle_counts <- ccle_counts[,index_a]
+index_b <- ccle_meta$CCLE_ID %in% colnames(ccle_counts)
+ccle_meta <- ccle_meta[index_b,]
+ccle_counts <- ccle_counts[,ccle_meta$CCLE_ID]
+```
+
+```{r}
+dim(ccle_meta)
+dim(ccle_counts)
+#1004 cell lines 
+```
+
+Save Outputs
+
+```{r}
+write.csv(ccle_counts, file = "../data/processed/ccle_counts.csv")
+write.csv(ccle_meta, file = "../data/processed/ccle_meta.csv", row.names = FALSE)
+```
