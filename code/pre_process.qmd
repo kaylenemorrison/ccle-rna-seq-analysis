@@ -139,3 +139,7 @@ Save Outputs
 write.csv(ccle_counts, file = "../data/processed/ccle_counts.csv")
 write.csv(ccle_meta, file = "../data/processed/ccle_meta.csv", row.names = FALSE)
 ```
+
+```{r}
+sessionInfo()
+```
